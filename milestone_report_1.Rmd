@@ -1,0 +1,163 @@
+---
+title: "Milestone report 1"
+author: "Michal Svoboda"
+date: "28 12 2017"
+output: html_document
+---
+
+```{r libraries,message=FALSE,echo=FALSE}
+library(tm)
+library(stringr)
+library(dplyr)
+library(ggplot2)
+```
+
+
+## Introduction
+The ultimate aim of the work is to build an app for predicting text based on input text relying on the data from Twitter, news and blog articles. This report summarises the current progress in the exploratory data analysis and features ideas for building the app and the prediction algorithm.
+
+## Exploratory analysis
+
+### Data dimensions
+Data comes in a form of 3 text files, where each line is an extract of some blog article, news article or a tweet. The numbers of lines and allocated memory in bytes are shown below. 
+```{r cache=TRUE}
+#number of lines:
+con<-file("./final/en_US/en_US.twitter.txt",open = "r")
+twit<-readLines(con,n=-1)
+close(con)
+
+con2<-file("./final/en_US/en_US.blogs.txt",open = "r")
+blog<-readLines(con2,n=-1)
+close(con2)
+
+con3<-file("./final/en_US/en_US.news.txt",open = "r")
+news<-readLines(con3,n=-1)
+close(con3)
+
+dimtab<-tibble(source=c("Blogs","Twitter","News"),lines=c(length(blog),length(twit),length(news)),size=c(object.size(blog),object.size(twit),object.size(news)))
+
+knitr::kable(dimtab)
+```
+
+In sake of saving the computation time, all initial exploratory analysis has been done on a random sample of a size of 10000 lines.
+
+```{r}
+set.seed(12345)
+sample_size<-10000
+i_twit<-sample(1:length(twit),size = sample_size,replace = F)
+i_blog<-sample(1:length(blog),size = sample_size,replace = F)
+i_news<-sample(1:length(news),size = sample_size,replace = F)
+
+twit_s<-twit[i_twit]
+blog_s<-blog[i_blog]
+news_s<-news[i_news]
+
+rm(twit)
+rm(blog)
+rm(news)
+```
+
+### Text lengths
+On the histograms below, the distributions of text length in characters is shown. One surprising result is a high portion of very short blogs - probably a result of pre-processing of blog data and anonymisation effort. Another surprise is a relatively uniform distribution of character length of Twitter messages - my hypothesis was that the distribution would be skewed to higher character counts. 
+```{r}
+blog_lengths<-data.frame(nchars=sapply(blog_s,str_length),source="Blog")
+twit_lengths<-data.frame(nchars=sapply(twit_s,str_length),source="Twitter")
+news_lengths<-data.frame(nchars=sapply(news_s,str_length),source="News")
+
+par(mfrow=c(3,1))
+hist(blog_lengths$nchars)
+hist(news_lengths$nchars)
+hist(twit_lengths$nchars)
+
+#lengths <- bind_rows(blog_lengths,twit_lengths,news_lengths)
+#ggplot(lengths,aes(nchars,colour=source,y=..density..)) +geom_freqpoly(position="dodge",bins=150)
+```
+
+
+### Features
+Here are some interesting features of the data:
+
+Most frequent words:
+Unsurprisingly, the most frequent words include articles, prepositions, adjectives. As can be seen on the plot below, the word frequencies are quite similar for news and blogs, but quite different for tweets. This is probably given by a different nature of tweets and the length limitation to 140 characters (true until late 2017) not leaving space for articles.
+
+```{r}
+freq <- function(x){
+  #flatten the data to a vector of words and calculate the frequency of each word
+  words <- unlist(str_split(x," "))
+  len <- length(words)
+  round(100*table(words)/len,digits = 2)
+}
+
+a <- data.frame(freq(twit_s))
+a$source <- "Twitter"
+b <- data.frame(freq(blog_s))
+b$source <- "Blogs"
+c <- data.frame(freq(news_s))
+c$source <- "News"
+
+freq_tab <- dplyr::bind_rows(a,b,c)
+rm(a,b,c)
+
+#filter out 10 most frequent words from news
+top10_news<-(freq_tab %>% filter(source=="News") %>% top_n(10,Freq) %>% arrange(desc(Freq)))[,1:2]
+
+plotdata<-freq_tab %>% filter(words %in% top10_news$words)
+
+#order the data so that most frequent word will be plotted first
+plotdata$words<-factor(plotdata$words, levels = top10_news$words)
+
+ggplot(data=plotdata,aes(words,Freq,color=source,group=source))+geom_point()+geom_line()
+
+
+```
+
+### Data issues and the strategy to deal with them
+
+- Entries, which are not in latin character set. For example   
+`r blog_s[1]`  
+Possible approach is to convert all the data from UTF-8 to ASCII using `iconv(x,from = "UTF-8",to="ASCII")`, which yields NA if the conversion is not possible, i.e. the original word contains characters not within the ASCII character set.
+- Entries containing abusive vocabulary: Abusive words will be removed using one of the databases available in the internet. 
+- Typos, grammar errors and similar: Will be ignored
+- Extra spaces: To be removed
+
+## Goals
+
+The goal of the project will be an app running on an Shiny server on shinyapps.io fulfilling the following requirements:
+
+### Functionality
+
+- The user will write into an input box and will recieve suggestions as to which word should come up next. Minimum acceptable functionality will be that suggestions come up upon writing a space, desirable would be that upon starting to write a word, suggestions for the actual word would appear.
+- The first suggested word will be inserted into the text upon hitting the Tab key.
+- It should be possible to run the application on an smartphone as well. 
+
+### Design
+
+- The app will look cool
+- Input field will be at the bottom and on top of that three buttons will be placed, which will be labelled with the suggested word
+
+### Performance
+
+- Maximum time for the suggestions to appear will be 2 seconds after writing a letter. Desirable would be better than 0.5 
+
+## Algorithm
+
+### Solution idea
+The prediction algorithm will work use a database, which will contain probabilities of a word given zero, one or two preceeding words. The word with the highest probability will be chosen. If no word in a sentence has been written yet, suggest the most probable word for the beginning of the sentence.
+
+### Algorithm goodness metrics
+
+- Efficiency on test set - how often is the suggested word the correct one
+- Time to predict a word
+- Occupied memory
+
+Efficiency will be tested on a database of n-grams - you get n-1 words and have to guess the nth one. 
+
+### Ideas for improving the algorithm
+
+- Guess the style based on the input - news/blog/tweet or even more 
+- Combine and weigh suggestions from databases of n-grams with different n based on amount of data
+
+### Handling unknown words/n-grams
+
+Assume the word is a typo, lookup a similar word and use this one for the prediction instead of the unknown one. The model will be based on letter frequencies, word length and letter pair frequencies (tbd).
+
