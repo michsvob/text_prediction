@@ -13,7 +13,7 @@ news<-readLines(con3,n=-1)
 close(con3)
 
 set.seed(12345)
-sample_size<-10000
+sample_size<-50000
 i_twit<-sample(1:length(twit),size = sample_size,replace = F)
 i_blog<-sample(1:length(blog),size = sample_size,replace = F)
 i_news<-sample(1:length(news),size = sample_size,replace = F)
