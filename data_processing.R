@@ -1,6 +1,7 @@
 # create corpora using tm package
 library(tm)
 corp <- VCorpus(DirSource("./sample/en_US/",encoding = "UTF-8"))
+#corp <- VCorpus(DirSource("./sample2/en_US/",encoding = "UTF-8"))
 #corp <- VCorpus(DirSource("./test_set/",encoding = "UTF-8"))
 
 corp <- tm_map(corp,content_transformer(tolower)) # to lowercase | improve: Correction for names
@@ -21,29 +22,29 @@ library(RWeka)
 gr1 <- TermDocumentMatrix(corp,control = list(tokenize=function(x){
                             NGramTokenizer(x,control=Weka_control(min=1,max=1))
                           },
-                          bounds=list(local=c(3,Inf))))
+                          bounds=list(local=c(1,Inf))))
 
 gr2 <- TermDocumentMatrix(corp,control = list(tokenize=function(x){
                                    NGramTokenizer(x,control=Weka_control(min=2,max=2))
                                    },
-                                   bounds=list(local=c(3,Inf)),
+                                   bounds=list(local=c(1,Inf)),
                                    stopwords=TRUE))
                                    
 
 gr3 <- TermDocumentMatrix(corp,control = list(tokenize=function(x){
                                    NGramTokenizer(x,control=Weka_control(min=3,max=3))
                                  },
-                                 bounds=list(local=c(3,Inf))))
+                                 bounds=list(local=c(1,Inf))))
 
 gr4 <- TermDocumentMatrix(corp,control = list(tokenize=function(x){
                                 NGramTokenizer(x,control=Weka_control(min=4,max=4))
                                },
-                               bounds=list(local=c(2,Inf))))
+                               bounds=list(local=c(1,Inf))))
 
 gr5 <- TermDocumentMatrix(corp,control = list(tokenize=function(x){
   NGramTokenizer(x,control=Weka_control(min=5,max=5))
 },
-bounds=list(local=c(2,Inf))))
+bounds=list(local=c(1,Inf))))
 
 flatten <- function(tdm){
   #summing up TermDocumentMatrices
@@ -73,7 +74,7 @@ for(i in 1:5){
 }
 
 
-saveRDS(ngramdb,"./training_set/ngramdb.rds")
+saveRDS(ngramdb,"./training_set/ngramdb_big.rds")
 
 #saveRDS(ngramdb,"./test_set/ngramdb.rds")
 
