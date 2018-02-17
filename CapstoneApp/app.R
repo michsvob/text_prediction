@@ -88,11 +88,16 @@ ui <- fluidPage(
    # Sidebar with a slider input for number of bins 
    verticalLayout(
       splitLayout(
+        cellWidths = 100,
+        cellArgs = list(style = "padding: 6px"),
          actionButton("suggestion1",label = "the"),
          actionButton("suggestion2",label = "on"),
          actionButton("suggestion3",label = "a")
       ),
-      textInput("textIn",label  = "Text input",placeholder = "Start typing here:")
+      textAreaInput("textIn",label  = "Text input",
+                    placeholder = "Start typing here:",
+                    resize = "vertical",
+                    rows = 6)
    )
 )
 
@@ -108,19 +113,18 @@ server <- function(input, output,session) {
   observeEvent(input$textIn,{
     prediction(predict_2(input$textIn))
     update_buttons(prediction())
-    print(prediction())
   })
   
   observeEvent(input$suggestion1,{
-    updateTextInput(session,inputId = "textIn",value = paste(input$textIn,prediction()[1]))
+    updateTextAreaInput(session,inputId = "textIn",value = paste(input$textIn,prediction()[1]))
   })
   
   observeEvent(input$suggestion2,{
-    updateTextInput(session,inputId = "textIn",value = paste(input$textIn,prediction()[2]))
+    updateTextAreaInput(session,inputId = "textIn",value = paste(input$textIn,prediction()[2]))
   })
   
   observeEvent(input$suggestion3,{
-    updateTextInput(session,inputId = "textIn",value = paste(input$textIn,prediction()[3]))
+    updateTextAreaInput(session,inputId = "textIn",value = paste(input$textIn,prediction()[3]))
   })
 }
 
