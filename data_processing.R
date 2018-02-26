@@ -1,7 +1,8 @@
 # create corpora using tm package
 library(tm)
-corp <- VCorpus(DirSource("./sample/en_US/",encoding = "UTF-8"))
+#corp <- VCorpus(DirSource("./sample/en_US/",encoding = "UTF-8"))
 #corp <- VCorpus(DirSource("./sample2/en_US/",encoding = "UTF-8"))
+corp <- VCorpus(DirSource("./sample3/en_US/",encoding = "UTF-8"))
 #corp <- VCorpus(DirSource("./test_set/",encoding = "UTF-8"))
 
 profanities<-read.table("profanities.txt",stringsAsFactors = F,strip.white = T,sep = "\n")[,1] #source: "https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/blob/master/en"
@@ -30,10 +31,10 @@ library(dplyr)
 
 #Clustering, tokenisation, handling of unknown words
 #---------------------------------------------------
-single_words <- NGramTokenizer(flatcorp,control=Weka_control(min=1,max=1))
-single_words <- tibble(feature=single_words) %>% group_by(feature) %>% summarise(freq=n())
 
-unks <- (single_words %>% filter(freq<3,freq>1) %>% select(feature))$feature
+single_words <- textstat_frequency(dfm(tokens(flatcorp,ngrams=1))) %>% filter(frequency>1)
+
+unks <- (single_words %>% filter(frequency<3,frequency>1) %>% select(feature))$feature
 #unique words do not need to be checked because only tokens with frequency >1 have been filtered
 #Handling unknown words
 #Replace all words that occur as unigram rarely by <unk>
@@ -43,6 +44,7 @@ replace_unknowns <- function(features){
   split[indexes] <- "<unk>"
   str_trim(apply(split, 1, paste,collapse=" "))  
 }
+
 
 freqs <- textstat_frequency(dfm(tokens(flatcorp,ngrams=2:5))) %>% filter(frequency>1)
 ngramdb <- tibble(feature=freqs$feature,frequency=as.integer(freqs$frequency))
@@ -61,8 +63,11 @@ ngramdb <- ngramdb %>% left_join(totals) %>% mutate(condprob=frequency/tot) %>% 
 
 
 #saveRDS(ngramdb,"./training_set/ngramdb_big.rds")
-saveRDS(ngramdb,"./training_set/ngramdb.rds")
-saveRDS(knowns,"./training_set/knowns.rds")
+#saveRDS(ngramdb,"./training_set/knowns_big.rds")
+saveRDS(ngramdb,"./training_set/ngramdb_medium.rds")
+saveRDS(ngramdb,"./training_set/knowns_medium.rds")
+#saveRDS(ngramdb,"./training_set/ngramdb.rds")
+#saveRDS(knowns,"./training_set/knowns.rds")
 #saveRDS(ngramdb,"./test_set/ngramdb.rds")
 
 

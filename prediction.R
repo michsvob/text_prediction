@@ -5,15 +5,20 @@ library(stringr)
 library(dplyr)
 library(tm)
 
-ngramdb <- readRDS("./training_set/ngramdb.rds")
-#ngramdb <- readRDS("./training_set/ngramdb_big.rds")
+#ngramdb <- readRDS("./training_set/ngramdb.rds")
+#knowns <- readRDS("./training_set/knowns.rds")
 
-knowns <- readRDS("./training_set/knowns.rds")
+#ngramdb <- readRDS("./training_set/ngramdb_big.rds")
+#ngramdb <- readRDS("./training_set/knowns_big.rds")
+
+ngramdb <- readRDS("./training_set/ngramdb_medium.rds")
+knowns <- readRDS("./training_set/knowns_medium.rds")
+
 
 #Function to predict next word
 #Principle: Interpolation - word is guessed based on weighted conditional 
 #probabilities of ngrams of size 1-5
-predict_2 <- function(input,alternatives=T,c5=1,c4=1,c3=1,c2=1,c1=1){
+#predict_2 <- function(input,alternatives=T,c5=1,c4=1,c3=1,c2=1,c1=1){
   input=stripWhitespace(removeNumbers(removePunctuation(input)))
   input= str_to_lower(gsub("^ * | $ *","",input)) # lowercase and strip extra whitespace before and after
 
@@ -72,7 +77,6 @@ predict_2 <- function(input,alternatives=T,c5=1,c4=1,c3=1,c2=1,c1=1){
 predict_3 <- function(input,alternatives=T,c5=1,c4=1,c3=1,c2=1,c1=1){
   input=stripWhitespace(removeNumbers(removePunctuation(input)))
   input= str_to_lower(gsub("^ * | $ *","",input)) # lowercase and strip extra whitespace before and after
-  
   input = tail(str_split(input," ")[[1]],4)
   input=replace(input,!(input %in% knowns),"<unk>")
   input=c(rep("",4-length(input)),input)
@@ -121,12 +125,10 @@ predict_3 <- function(input,alternatives=T,c5=1,c4=1,c3=1,c2=1,c1=1){
   pred
 }
 
-
-
 test_set="./test_set/ngramdb.rds"
 yy<- readRDS(test_set)
 yy <- yy %>% filter(grams==5) %>% transmute(question=paste(fourth,third,second,first),correct=pred)
-ids <- sample(1:nrow(yy),500)
+ids <- sample(1:nrow(yy),1000)
 
 test <- function(k1,k2,k3,k4,k5){
   time1 <- Sys.time()

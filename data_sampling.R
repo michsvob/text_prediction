@@ -13,7 +13,7 @@ news<-readLines(con3,n=-1)
 close(con3)
 
 set.seed(12345)
-sample_size<-50000
+sample_size<-100000 #puvodne 50000, psani do slozky sample
 i_twit<-sample(1:length(twit),size = sample_size,replace = F)
 i_blog<-sample(1:length(blog),size = sample_size,replace = F)
 i_news<-sample(1:length(news),size = sample_size,replace = F)
@@ -22,9 +22,9 @@ twit_s<-twit[i_twit]
 blog_s<-blog[i_blog]
 news_s<-news[i_news]
 
-write(blog_s,"./sample/en_US/en_US.blogs.txt")
-write(news_s,"./sample/en_US/en_US.news.txt")
-write(twit_s,"./sample/en_US/en_US.twitter.txt")
+write(blog_s,"./sample3/en_US/en_US.blogs.txt")
+write(news_s,"./sample3/en_US/en_US.news.txt")
+write(twit_s,"./sample3/en_US/en_US.twitter.txt")
 
 
 #TEST set
