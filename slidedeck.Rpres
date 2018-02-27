@@ -1,0 +1,48 @@
+Text Prediction Web Application
+========================================================
+author: Michal Svoboda
+date: 27.2.2018
+autosize: true
+
+Task
+========================================================
+
+- Develop a web application which given a part of the sentence, predicts the next word.
+- Deploy the application on shinyapps.io
+
+Text prediction model
+========================================================
+
+- N-Gram language model using interpolation.
+- Algorithm relies on assigning score for the prediction as a sum of conditional probabilities of the word given 1 to 4 previous words
+- Words with the highest scores are returned
+
+Model verification
+==================
+<br>
+  
+- Accuracy (likelihood that one of n suggested words is true)  
+```{r, echo=FALSE}
+plot(x=1:5,xlab="n",ylab = "Accuracy",y=c(.447,.548,.611,.648,.673))
+```
+
+***
+<br>
+- Correlation between score and correct suggestion
+
+```{r,echo=FALSE}
+pr <- readRDS("protocoll.rds")
+plot(pr$score,pr$match,xlab = "Score",ylab="Match probability")
+abline(lm(match~score,data=pr),col="red")
+```
+
+Application
+========================================================
+<br>
+- The [application](https://svobom38.shinyapps.io/CapstoneApp/) accepts an input from user and shows suggestions for the next word in the button labels
+- The action buttons can be used similarly as the prediction bars of the mobile device`s keyboards
+- Unlike the most text predicton applications, this one shows the score, which is proportional to the likelihood of the correct answer
+
+***
+<br>
+![app](capt.png)

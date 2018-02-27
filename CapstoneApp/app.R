@@ -10,69 +10,46 @@
 library(stringr)
 library(dplyr)
 library(tm)
+library(shiny)
+library(flexdashboard)
 
-ngramdb <- readRDS("ngramdb_withunks.rds")
-knowns <- readRDS("knowns.rds")
+ngramdb <- readRDS("ngramdb_medium.rds")
+knowns <- readRDS("knowns_medium.rds")
 
-predict_2 <- function(text_in,alternatives=T,c5=1,c4=1,c3=1,c2=1,c1=1){
-  text_in=stripWhitespace(removeNumbers(removePunctuation(text_in)))
-  text_in= str_to_lower(gsub("^ * | $ *","",text_in)) # lowercase and strip extra whitespace
-  
-  text_in = tail(str_split(text_in," ")[[1]],4)
-  text_in=replace(text_in,!(text_in %in% knowns),"<unk>")
-  text_in=c(rep("",4-length(text_in)),text_in)
+predict_3 <- function(input,alternatives=T,c5=1,c4=1,c3=1,c2=1,c1=1){
+  input=stripWhitespace(removeNumbers(removePunctuation(input)))
+  input= str_to_lower(gsub("^ * | $ *","",input)) # lowercase and strip extra whitespace before and after
+  input = tail(str_split(input," ")[[1]],4)
+  input=replace(input,!(input %in% knowns),"<unk>")
+  input=c(rep("",4-length(input)),input)
   
   gr5=ngramdb %>% 
-    filter(grams==5,fourth==text_in[1],third==text_in[2],second==text_in[3],first==text_in[4]) %>% 
-    group_by(pred) %>% summarise(score=c5*sum(condprob))
+    filter(grams==5,predictor==paste(input,collapse=" ")) 
   #ngrams are up-voted by factor c
   
-  score5=0
-  if(nrow(gr5)>0){
-    score5=top_n(gr5,1,score)[1,2]
-  }
-  
   gr4=ngramdb %>% 
-    filter(grams==4,third==text_in[2],second==text_in[3],first==text_in[4]) %>% 
-    group_by(pred) %>% summarise(score=c4*sum(condprob)) 
-  
-  score4=0
-  if(nrow(gr4)>0){
-    score4=top_n(gr4,1,score)[1,2]
-  }
+    filter(grams==4,predictor==paste(input[2:4],collapse=" ")) 
   
   gr3=ngramdb %>% 
-    filter(grams==3,second==text_in[3],first==text_in[4]) %>% 
-    group_by(pred) %>% summarise(score=c3*sum(condprob))
-  
-  score3=0
-  if(nrow(gr3)>0){
-    score3=top_n(gr3,1,score)[1,2]
-  }
+    filter(grams==3,predictor==paste(input[3:4],collapse=" "))
   
   gr2=ngramdb %>% 
-    filter(grams==2,first==text_in[4]) %>% 
-    group_by(pred) %>% summarise(score=c2*sum(condprob)) 
+    filter(grams==2,predictor==paste(input[4],collapse=" "))
   
-  score2=0
-  if(nrow(gr2)>0){
-    score2=top_n(gr2,1,score)[1,2]
+  pred <- (bind_rows(gr5,gr4,gr3,gr2) %>% 
+             group_by(prediction) %>% summarise(score=sum(condprob,na.rm=TRUE)) %>% top_n(((alternatives*4)+1),score) %>% 
+             arrange(desc(score)))
+  #top_n is here for performance reasons
+  
+  scores <- pred$score
+  predictions <- pred$prediction
+  
+  if(length(predictions)<5){
+    predictions=head(append(predictions,c('the', 'to','and', 'a','of')),5)
+    scores=head(append(scores,c(0,0,0,0,0)),5) 
   }
-  
-  #gr1=ngramdb %>% 
-  #  filter(grams==1, pred %in% gr2$pred) %>% 
-  #  group_by(pred) %>% summarise(score=c1*sum(condprob)) 
-  
-  pred <- (bind_rows(gr5,gr4,gr3,gr2) %>% #,gr1) %>%
-             group_by(pred) %>% summarise(score=sum(score,na.rm=TRUE)) %>% top_n(((alternatives*2)+1),score) %>% 
-             arrange(desc(score)))$pred
-  
-  if(length(pred)<3){
-    pred=head(append(pred,c('the', 'on', 'a')),3)
-  }
-  pred
+  list(predictions,scores)
 }
-
 
 ################################-------------------------------#########################
 
@@ -83,36 +60,59 @@ library(shiny)
 ui <- fluidPage(
    
    # Application title
-   titlePanel("Text predictor"),
+   titlePanel("Text Predictor"),
    
    # Sidebar with a slider input for number of bins 
    verticalLayout(
+     splitLayout(
+       cellWidths = 100,
+       cellArgs = list(style = "padding: 6px"),
+       gaugeOutput("gauge1",height = "auto"),
+       gaugeOutput("gauge2",height = "auto"),
+       gaugeOutput("gauge3",height = "auto")
+     ),
       splitLayout(
         cellWidths = 100,
         cellArgs = list(style = "padding: 6px"),
          actionButton("suggestion1",label = "the"),
-         actionButton("suggestion2",label = "on"),
-         actionButton("suggestion3",label = "a")
+         actionButton("suggestion2",label = "to"),
+         actionButton("suggestion3",label = "and")
       ),
       textAreaInput("textIn",label  = "Text input",
                     placeholder = "Start typing here:",
                     resize = "vertical",
-                    rows = 6)
+                    rows = 6),
+     tags$div(
+       tags$p("The application predicts the text upon writing in the text input field. The suggestions are labels of the buttons and can be used by pressing the buttons.
+              The gauges and numbers above the buttons show the score of the predictions - the higher the score, the more likely is the prediction to be correct.",
+              style = "width: 300px"), 
+       tags$p("This app was made as a final task of the Data Science Specialisation course provided by John Hopkins University on Coursera by Michal Svoboda.",
+              style = "width: 300px")
+     ),
+     HTML('<a href="https://github.com/michsvob"> Michal Svoboda - Github</a>')
    )
 )
 
 server <- function(input, output,session) {
-  prediction <- reactiveVal(c("the","on","a")) #= initial button labels
+  prediction <- reactiveVal(c("the","to","and","a","of")) #= initial button labels
+  scores <- reactiveVal(c(0,0,0,0,0)) #= initial gauge values
   
-  update_buttons <- function(labels){
+  update_buttons <- function(labels,vals){
     updateActionButton(session,inputId = "suggestion1",label =labels[1])
     updateActionButton(session,inputId = "suggestion2",label =labels[2])
     updateActionButton(session,inputId = "suggestion3",label =labels[3])
+
+    vals=round(vals,1)
+    output$gauge1 <- renderGauge(gauge(vals[1],min=0,max=4,abbreviate = TRUE, abbreviateDecimals = 1,sectors = gaugeSectors(success = c(2, 4), warning = c(1.13, 2), danger = c(0, 1.13))))
+    output$gauge2 <- renderGauge(gauge(vals[2],min=0,max=4,abbreviate = TRUE, abbreviateDecimals = 1,sectors = gaugeSectors(success = c(2, 4), warning = c(1.13, 2), danger = c(0, 1.13))))
+    output$gauge3 <- renderGauge(gauge(vals[3],min=0,max=4,abbreviate = TRUE, abbreviateDecimals = 1,sectors = gaugeSectors(success = c(2, 4), warning = c(1.13, 2), danger = c(0, 1.13))))
     }
 
   observeEvent(input$textIn,{
-    prediction(predict_2(input$textIn))
-    update_buttons(prediction())
+    pred=predict_3(input$textIn)
+    prediction(pred[[1]])
+    scores(pred[[2]])
+    update_buttons(prediction(),scores())
   })
   
   observeEvent(input$suggestion1,{

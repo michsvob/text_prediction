@@ -55,17 +55,21 @@ ngramdb <- ngramdb %>% transmute(
   predictor=replace_unknowns(predictor),
   frequency)
 
-knowns <- unique(as.character(str_split(ngramdb$predictor," ",simplify = T)))
 
 #calculate conditional probabilities of predictor given the prediction
 totals <- ngramdb %>% group_by(predictor) %>% summarise(tot=sum(frequency))
 ngramdb <- ngramdb %>% left_join(totals) %>% mutate(condprob=frequency/tot) %>% select(-tot)
 
+ngramdb <- filter(ngramdb,!(grams==2 & frequency<5),!(grams==3 & frequency<3))
+#for performance reasons
+
+knowns <- unique(as.character(str_split(ngramdb$predictor," ",simplify = T)))
+
 
 #saveRDS(ngramdb,"./training_set/ngramdb_big.rds")
 #saveRDS(ngramdb,"./training_set/knowns_big.rds")
 saveRDS(ngramdb,"./training_set/ngramdb_medium.rds")
-saveRDS(ngramdb,"./training_set/knowns_medium.rds")
+saveRDS(knowns,"./training_set/knowns_medium.rds")
 #saveRDS(ngramdb,"./training_set/ngramdb.rds")
 #saveRDS(knowns,"./training_set/knowns.rds")
 #saveRDS(ngramdb,"./test_set/ngramdb.rds")
